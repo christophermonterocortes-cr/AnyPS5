@@ -69,6 +69,7 @@ struct ReportedAttributes {
 
 extern "C" {
 int APS5_VABI pthread_attr_setstack_nid_postfix(PthreadAttr* attr, void* addr, std::size_t size);
+int APS5_VABI pthread_attr_setstackaddr_nid_postfix(PthreadAttr* attr, void* addr);
 int APS5_VABI pthread_attr_getstack_nid_postfix(const PthreadAttr* attr, void** addr, std::size_t* size);
 int APS5_VABI pthread_attr_getstackaddr_nid_postfix(const PthreadAttr* attr, void** addr);
 }
@@ -386,15 +387,23 @@ int main() {
 
     PthreadAttr stackAttr = nullptr;
     char stackMarker;
+    char otherMarker;
     void* reportedAddress = nullptr;
     std::size_t reportedSize = 0;
     Require(pthread_attr_setstack_nid_postfix(nullptr, &stackMarker, STACK_SIZE) == 22);
     Require(pthread_attr_setstack_nid_postfix(&stackAttr, &stackMarker, STACK_SIZE) == 22);
+    Require(pthread_attr_setstackaddr_nid_postfix(nullptr, &stackMarker) == 22);
+    Require(pthread_attr_setstackaddr_nid_postfix(&stackAttr, &stackMarker) == 22);
     Require(pthread_attr_getstackaddr_nid_postfix(nullptr, &reportedAddress) == 22);
     Require(pthread_attr_getstackaddr_nid_postfix(&stackAttr, &reportedAddress) == 22);
     Require(scePthreadAttrInit(&stackAttr) == SCE_OK);
     Require(pthread_attr_getstackaddr_nid_postfix(&stackAttr, nullptr) == 22);
     Require(pthread_attr_getstackaddr_nid_postfix(&stackAttr, &reportedAddress) == 0 && reportedAddress == nullptr);
+    Require(pthread_attr_setstackaddr_nid_postfix(&stackAttr, nullptr) == 22);
+    Require(pthread_attr_setstackaddr_nid_postfix(&stackAttr, &stackMarker) == 0);
+    Require(pthread_attr_getstackaddr_nid_postfix(&stackAttr, &reportedAddress) == 0 && reportedAddress == &stackMarker);
+    Require(pthread_attr_setstackaddr_nid_postfix(&stackAttr, &otherMarker) == 0);
+    Require(pthread_attr_getstackaddr_nid_postfix(&stackAttr, &reportedAddress) == 0 && reportedAddress == &otherMarker);
     Require(pthread_attr_setstack_nid_postfix(&stackAttr, &stackMarker, STACK_SIZE) == 0);
     Require(pthread_attr_setstack_nid_postfix(&stackAttr, nullptr, STACK_SIZE) == 22);
     Require(pthread_attr_setstack_nid_postfix(&stackAttr, &stackMarker, 16383) == 22);
@@ -404,5 +413,6 @@ int main() {
     Require(pthread_attr_getstackaddr_nid_postfix(&stackAttr, &reportedAddress) == 0 && reportedAddress == &stackMarker);
     Require(scePthreadAttrDestroy(&stackAttr) == SCE_OK);
     Require(pthread_attr_setstack_nid_postfix(&stackAttr, &stackMarker, STACK_SIZE) == 22);
+    Require(pthread_attr_setstackaddr_nid_postfix(&stackAttr, &stackMarker) == 22);
     Require(pthread_attr_getstackaddr_nid_postfix(&stackAttr, &reportedAddress) == 22);
 }
