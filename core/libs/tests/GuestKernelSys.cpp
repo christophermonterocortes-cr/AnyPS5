@@ -59,6 +59,9 @@ int APS5_VABI fchown_nid_postfix(int, std::uint32_t, std::uint32_t);
 int APS5_VABI fstatat_nid_postfix(int, const char*, FileStat*, int);
 std::int64_t APS5_VABI sceKernelRead(int, void*, std::size_t);
 std::uint16_t APS5_VABI umask_nid_postfix(std::uint16_t);
+int APS5_VABI socket_nid_postfix(int, int, int);
+int APS5_VABI pipe_nid_postfix(int*);
+int APS5_VABI kqueue_nid_postfix();
 int* APS5_VABI __error_nid_postfix();
 }
 
@@ -364,6 +367,23 @@ int main() {
     Require(fileDescriptor >= 0);
     Require(fchdir_nid_postfix(-1) == -1 && Error() == 9);
     Require(fchdir_nid_postfix(fileDescriptor) == -1 && Error() == 20);
+    const int sock = socket_nid_postfix(2, 1, 0);
+    Require(sock >= 0);
+    Require(fchdir_nid_postfix(sock) == -1 && Error() == 22);
+    Require(close_nid_postfix(sock) == 0);
+    Require(fchdir_nid_postfix(sock) == -1 && Error() == 9);
+    int pipeDescriptors[2]{-1, -1};
+    Require(pipe_nid_postfix(pipeDescriptors) == 0);
+    Require(fchdir_nid_postfix(pipeDescriptors[0]) == -1 && Error() == 22);
+    Require(fchdir_nid_postfix(pipeDescriptors[1]) == -1 && Error() == 22);
+    Require(close_nid_postfix(pipeDescriptors[0]) == 0);
+    Require(close_nid_postfix(pipeDescriptors[1]) == 0);
+    Require(fchdir_nid_postfix(pipeDescriptors[0]) == -1 && Error() == 9);
+    const int kq = kqueue_nid_postfix();
+    Require(kq >= 0);
+    Require(fchdir_nid_postfix(kq) == -1 && Error() == 22);
+    Require(close_nid_postfix(kq) == 0);
+    Require(fchdir_nid_postfix(kq) == -1 && Error() == 9);
     Require(fchdir_nid_postfix(directory) == 0);
     char directoryPath[1024];
     Require(getcwd_nid_postfix(directoryPath, sizeof(directoryPath)) == directoryPath);
@@ -546,8 +566,13 @@ int main() {
     Require(unlinkat_nid_postfix(base, "file.txt", 0x800) == -1 && Error() == 20);
     Require(unlinkat_nid_postfix(base, ".", 0x800) == -1 && Error() == 22);
     Require(unlinkat_nid_postfix(base, "..", 0x800) == -1 && Error() == 22);
-    Require(unlinkat_nid_postfix(base, ".", 0) == -1 && Error() == 1);
+    Require(unlinkat_nid_postfix(base, ".", 0) == -1 && Error() == 22);
+    Require(unlinkat_nid_postfix(base, "..", 0) == -1 && Error() == 22);
     std::filesystem::create_directory(root / "usub");
+    Require(unlinkat_nid_postfix(base, "usub/.", 0) == -1 && Error() == 22);
+    Require(unlinkat_nid_postfix(base, "usub/..", 0) == -1 && Error() == 22);
+    Require(unlinkat_nid_postfix(base, "usub/.", 0x800) == -1 && Error() == 22);
+    Require(unlinkat_nid_postfix(base, "usub/..", 0x800) == -1 && Error() == 22);
     Require(unlinkat_nid_postfix(base, "usub", 0) == -1 && Error() == 1);
     std::filesystem::create_directory(root / "nonempty");
     { std::ofstream out(root / "nonempty" / "f.bin"); out << 'x'; }

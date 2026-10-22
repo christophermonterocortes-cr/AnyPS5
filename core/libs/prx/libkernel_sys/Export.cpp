@@ -357,7 +357,7 @@ int APS5_VABI link_nid_postfix(const char* existing, const char* created) {
 
 int APS5_VABI fchdir_nid_postfix(int fd) {
     int error = 0;
-    const char* path = GetDirectoryDescriptorPath_nid_no_patch(fd, &error);
+    const char* path = GetChangeDirectoryDescriptorPath_nid_no_patch(fd, &error);
     if (path == nullptr) return static_cast<int>(Fail(error));
 #ifndef _WIN32
     if (::faccessat(fd, ".", X_OK, AT_EACCESS) != 0) return static_cast<int>(Fail(errno));
@@ -576,8 +576,8 @@ int APS5_VABI unlinkat_nid_postfix(int fd, const char* path, int flag) {
     while (!native.has_filename() && native.has_relative_path()) native = native.parent_path();
     std::error_code statusError;
     const auto symlinkStatus = std::filesystem::symlink_status(native, statusError);
+    if (IsDotOrDotDot(path)) return static_cast<int>(Fail(GuestEinval));
     if (flag & GuestAtRemovedir) {
-        if (IsDotOrDotDot(path)) return static_cast<int>(Fail(GuestEinval));
         if (std::filesystem::is_symlink(symlinkStatus)) return static_cast<int>(Fail(GuestEnotdir));
         if (!std::filesystem::is_directory(symlinkStatus)) {
             if (HasNonDirectoryPrefix(native) || std::filesystem::exists(symlinkStatus))

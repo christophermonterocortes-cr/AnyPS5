@@ -1,5 +1,8 @@
 #include "prx/libkernel/File/include/DirectoryDescriptor.hpp"
+#include "prx/libkernel/File/include/DescriptorControl.hpp"
 #include "prx/libkernel/File/include/File.hpp"
+#include "prx/libkernel/File/include/SharedMemory.hpp"
+#include "prx/libkernel/Socket/include/SocketRuntime.hpp"
 #include "prx/libkernel/KernelErrors.hpp"
 #include "prx/libc/include/HostThreadLocal.hpp"
 
@@ -219,6 +222,29 @@ extern "C" const char* GetDirectoryDescriptorPath_nid_no_patch(int fd, int* erro
 #else
         *error = ENOTDIR;
 #endif
+        return nullptr;
+    }
+    struct PathTag {};
+    auto& path = HostThreadLocal<std::string, PathTag>();
+    const auto utf8Path = directory->u8string();
+    path.assign(reinterpret_cast<const char*>(utf8Path.data()), utf8Path.size());
+    *error = 0;
+    return path.c_str();
+}
+
+extern "C" const char* GetChangeDirectoryDescriptorPath_nid_no_patch(int fd, int* error) {
+    if (error == nullptr) return nullptr;
+    if (fd < 0 || (!DescriptorIsOpen_nid_no_patch(fd) && !GuestSocketIsOpen_nid_no_patch(fd))) {
+        *error = EBADF;
+        return nullptr;
+    }
+    if (GuestSocketIsOpen_nid_no_patch(fd) || File::IsSharedMemoryDescriptor_nid_no_patch(fd) || !File::IsVnode(fd)) {
+        *error = EINVAL;
+        return nullptr;
+    }
+    const auto directory = File::DirectoryDescriptorPath(fd);
+    if (!directory) {
+        *error = ENOTDIR;
         return nullptr;
     }
     struct PathTag {};

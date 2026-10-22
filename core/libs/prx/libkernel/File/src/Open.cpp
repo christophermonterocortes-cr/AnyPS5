@@ -419,8 +419,12 @@ int APS5_VABI sceKernelUnlink(const char* path) {
     std::filesystem::path native;
     if (const int error = ResolvePathError_nid_no_patch(path, native)) return SceKernelError(error);
     constexpr int GuestEperm = 1;
+    constexpr int GuestEinval = 22;
     std::error_code error;
-    if (std::filesystem::is_directory(std::filesystem::symlink_status(native, error))) return SceErrorFromErrno(GuestEperm);
+    if (std::filesystem::is_directory(std::filesystem::symlink_status(native, error))) {
+        if (FinalPathComponentIsDot_nid_no_patch(path)) return SceErrorFromErrno(GuestEinval);
+        return SceErrorFromErrno(GuestEperm);
+    }
     if (NativeUnlink(native) != 0) {
         return SceErrorFromErrno(errno == ENOENT ? NotFoundError_nid_no_patch(native) : errno);
     }

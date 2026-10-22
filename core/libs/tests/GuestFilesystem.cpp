@@ -4,6 +4,7 @@
 #include "prx/libc/include/FileStream.hpp"
 #include "prx/libkernel/File/include/File.hpp"
 #include "prx/libkernel/File/include/NativeStat.hpp"
+#include "prx/libkernel/File/include/DirectoryDescriptor.hpp"
 #include "prx/libkernel/KernelErrors.hpp"
 #include <algorithm>
 #include <chrono>
@@ -94,6 +95,7 @@ void APS5_VABI funlockfile_nid_postfix(FileStream*);
 int APS5_VABI ftrylockfile_nid_postfix(FileStream*);
 int* APS5_VABI __error_nid_postfix();
 int APS5_VABI pipe_nid_postfix(int*);
+int APS5_VABI kqueue_nid_postfix();
 int APS5_VABI dup2_nid_postfix(int, int);
 std::int64_t APS5_VABI lseek_nid_postfix(int, std::int64_t, int);
 std::int64_t APS5_VABI read_nid_postfix(int, void*, std::size_t);
@@ -1325,6 +1327,63 @@ int main() {
     Require(sceKernelMkdir(trailingKernelName.c_str(), 0700) == 0 && std::filesystem::is_directory(trailingKernel));
     Require(rmdir_nid_postfix(trailingPosix.string().c_str()) == 0 && sceKernelRmdir(trailingKernel.string().c_str()) == 0);
     Require(!std::filesystem::exists(trailingPosix) && !std::filesystem::exists(trailingKernel));
+    const auto dotDirectory = root / "dot_component_dir";
+    Require(mkdir_nid_postfix(dotDirectory.string().c_str(), 0700) == 0);
+    const auto dotChild = dotDirectory / ".";
+    const auto dotChildSlash = dotDirectory.string() + "/./";
+    const auto dotDotChild = dotDirectory / "..";
+    const auto dotDotChildSlash = dotDirectory.string() + "/../";
+    Require(rmdir_nid_postfix(dotChild.string().c_str()) == -1 && *__error_nid_postfix() == 22);
+    Require(rmdir_nid_postfix(dotChildSlash.c_str()) == -1 && *__error_nid_postfix() == 22);
+    Require(rmdir_nid_postfix(dotDotChild.string().c_str()) == -1 && *__error_nid_postfix() == 22);
+    Require(rmdir_nid_postfix(dotDotChildSlash.c_str()) == -1 && *__error_nid_postfix() == 22);
+    Require(sceKernelRmdir(dotChild.string().c_str()) == static_cast<int>(0x80020016u));
+    Require(sceKernelRmdir(dotChildSlash.c_str()) == static_cast<int>(0x80020016u));
+    Require(sceKernelRmdir(dotDotChild.string().c_str()) == static_cast<int>(0x80020016u));
+    Require(sceKernelRmdir(dotDotChildSlash.c_str()) == static_cast<int>(0x80020016u));
+    Require(unlink_nid_postfix(dotChild.string().c_str()) == -1 && *__error_nid_postfix() == 22);
+    Require(unlink_nid_postfix(dotChildSlash.c_str()) == -1 && *__error_nid_postfix() == 22);
+    Require(unlink_nid_postfix(dotDotChild.string().c_str()) == -1 && *__error_nid_postfix() == 22);
+    Require(unlink_nid_postfix(dotDotChildSlash.c_str()) == -1 && *__error_nid_postfix() == 22);
+    Require(sceKernelUnlink(dotChild.string().c_str()) == static_cast<int>(0x80020016u));
+    Require(sceKernelUnlink(dotChildSlash.c_str()) == static_cast<int>(0x80020016u));
+    Require(sceKernelUnlink(dotDotChild.string().c_str()) == static_cast<int>(0x80020016u));
+    Require(sceKernelUnlink(dotDotChildSlash.c_str()) == static_cast<int>(0x80020016u));
+    Require(rmdir_nid_postfix(dotDirectory.string().c_str()) == 0);
+    Require(rmdir_nid_postfix(".") == -1 && *__error_nid_postfix() == 22);
+    Require(rmdir_nid_postfix("..") == -1 && *__error_nid_postfix() == 22);
+    Require(sceKernelRmdir(".") == static_cast<int>(0x80020016u));
+    Require(sceKernelRmdir("..") == static_cast<int>(0x80020016u));
+    Require(unlink_nid_postfix(".") == -1 && *__error_nid_postfix() == 22);
+    Require(unlink_nid_postfix("..") == -1 && *__error_nid_postfix() == 22);
+    Require(sceKernelUnlink(".") == static_cast<int>(0x80020016u));
+    Require(sceKernelUnlink("..") == static_cast<int>(0x80020016u));
+    int changeDirError = 0;
+    Require(GetChangeDirectoryDescriptorPath_nid_no_patch(-1, &changeDirError) == nullptr && changeDirError == 9);
+    const int changeSock = socket_nid_postfix(2, 1, 0);
+    Require(changeSock >= 0);
+    Require(GetChangeDirectoryDescriptorPath_nid_no_patch(changeSock, &changeDirError) == nullptr && changeDirError == 22);
+    Require(close_nid_postfix(changeSock) == 0);
+    Require(GetChangeDirectoryDescriptorPath_nid_no_patch(changeSock, &changeDirError) == nullptr && changeDirError == 9);
+    int changePipe[2]{-1, -1};
+    Require(pipe_nid_postfix(changePipe) == 0);
+    Require(GetChangeDirectoryDescriptorPath_nid_no_patch(changePipe[0], &changeDirError) == nullptr && changeDirError == 22);
+    Require(close_nid_postfix(changePipe[0]) == 0);
+    Require(close_nid_postfix(changePipe[1]) == 0);
+    const int changeKq = kqueue_nid_postfix();
+    Require(changeKq >= 0);
+    Require(GetChangeDirectoryDescriptorPath_nid_no_patch(changeKq, &changeDirError) == nullptr && changeDirError == 22);
+    Require(close_nid_postfix(changeKq) == 0);
+    Require(GetChangeDirectoryDescriptorPath_nid_no_patch(changeKq, &changeDirError) == nullptr && changeDirError == 9);
+    const int changeFile = open_nid_postfix(presentName.c_str(), 0, 0);
+    Require(changeFile >= 0);
+    Require(GetChangeDirectoryDescriptorPath_nid_no_patch(changeFile, &changeDirError) == nullptr && changeDirError == 20);
+    Require(close_nid_postfix(changeFile) == 0);
+    const int changeDir = sceKernelOpen(root.string().c_str(), 0, 0);
+    Require(changeDir >= 0);
+    const char* changePath = GetChangeDirectoryDescriptorPath_nid_no_patch(changeDir, &changeDirError);
+    Require(changePath != nullptr && changeDirError == 0);
+    Require(close_nid_postfix(changeDir) == 0);
     Require(std::filesystem::is_regular_file(present));
     Require(rmdir_nid_postfix("") == -1 && *__error_nid_postfix() == 2);
     Require(rmdir_nid_postfix(nullptr) == -1 && *__error_nid_postfix() == 14);
