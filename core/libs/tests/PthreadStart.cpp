@@ -2,6 +2,7 @@
 #include <future>
 #include <iostream>
 #include <stdexcept>
+#include <xmmintrin.h>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -35,6 +36,7 @@ static void CheckLargeFrame() {
 static void* APS5_VABI CheckThread(void* arg) {
     auto& context = *static_cast<ThreadContext*>(arg);
     if (!context.thread) throw std::runtime_error("Thread handle was not published");
+    if (_mm_getcsr() != 0x9fc0) throw std::runtime_error("Guest thread MXCSR does not start at 0x9fc0");
 #ifdef _WIN32
     if (scePthreadSelf() != context.thread)
         throw std::runtime_error("Current guest thread handle is incorrect");
@@ -71,6 +73,10 @@ static void* APS5_VABI CheckThread(void* arg) {
 }
 
 int main() {
+    const unsigned savedCsr = _mm_getcsr();
+    _mm_setcsr(0x1f80);
+    if (!scePthreadSelf() || _mm_getcsr() != 0x9fc0) throw std::runtime_error("Adopted guest thread MXCSR does not start at 0x9fc0");
+    _mm_setcsr(0x1f80);
     for (int iteration = 0; iteration < 10000; ++iteration) {
         ThreadContext context;
         context.stackSize = (iteration % 2 + 1) * (1u << 20);
@@ -100,5 +106,6 @@ int main() {
         context.checked.get_future().get();
     }
 #endif
+    _mm_setcsr(savedCsr);
     std::cout << "PASS: 10000 thread starts, committed stacks, large frames, explicit exits and joins; 100 detach checks\n";
 }

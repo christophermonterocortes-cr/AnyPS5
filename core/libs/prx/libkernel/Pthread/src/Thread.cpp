@@ -23,6 +23,7 @@
 #include <stdexcept>
 #include <thread>
 #include <system_error>
+#include <xmmintrin.h>
 
 #ifndef _WIN32
 #include <cerrno>
@@ -39,6 +40,7 @@ static constexpr std::size_t DEFAULT_STACK_SIZE = 1u << 20;
 static constexpr std::size_t HOST_STACK_MARGIN = 1u << 20;
 static constexpr int DETACH_DETACHED = 1;
 static constexpr std::size_t THREAD_NAME_CAPACITY = 32;
+static constexpr unsigned GUEST_MXCSR = 0x9fc0;
 
 #ifdef _WIN32
 #include <windows.h>
@@ -663,6 +665,7 @@ static void RunThread(std::unique_ptr<ThreadArgs> args) {
 #ifndef _WIN32
     pthread_sigmask(SIG_SETMASK, &signalMask, nullptr);
 #endif
+    _mm_setcsr(GUEST_MXCSR);
     finishThread(self, Aps5CallGuestEntry_nid_no_patch(entry, arg));
     CurrentGuestState().current = nullptr;
 }
@@ -741,6 +744,7 @@ struct NativeThreadArgs {
 
 #ifdef _WIN32
 static unsigned __stdcall StartNativeThread(void* opaque) {
+    _mm_setcsr(GUEST_MXCSR);
     std::unique_ptr<NativeThreadArgs> args(static_cast<NativeThreadArgs*>(opaque));
     auto* self = args->guest->self;
     try {
@@ -775,6 +779,7 @@ static unsigned __stdcall StartNativeThread(void* opaque) {
 }
 #else
 static void* StartNativeThread(void* opaque) {
+    _mm_setcsr(GUEST_MXCSR);
     std::unique_ptr<NativeThreadArgs> args(static_cast<NativeThreadArgs*>(opaque));
     auto* self = args->guest->self;
     try {
@@ -1004,6 +1009,7 @@ void APS5_VABI scePthreadExit(void* retval) {
 Pthread APS5_VABI scePthreadSelf() {
 #ifdef _WIN32
     if (!CurrentGuestState().current) {
+        _mm_setcsr(GUEST_MXCSR);
         auto adopted = std::make_unique<PthreadPrivate>();
         HANDLE handle = nullptr;
         if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), &handle, 0, FALSE, DUPLICATE_SAME_ACCESS))
@@ -1018,6 +1024,7 @@ Pthread APS5_VABI scePthreadSelf() {
     }
 #else
     if (!CurrentGuestState().current) {
+        _mm_setcsr(GUEST_MXCSR);
         adoptedThread = std::make_unique<PthreadPrivate>();
         adoptedThread->_detached = true;
         adoptedThread->_adopted = true;

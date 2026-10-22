@@ -121,6 +121,21 @@ void CheckSymlinkTargetRestrictions(const std::filesystem::path& root) {
     for (const auto& target : {std::string("C:/"), std::string("\\\\server\\share")})
         Require(SymlinkTargetThrows(target.c_str(), created));
 #endif
+    const std::string longTarget(1024, 'a');
+    Require(symlink_nid_postfix(longTarget.c_str(), created.c_str()) == -1 && Error() == 63);
+    const std::string longerTarget(1025, 'b');
+    Require(symlink_nid_postfix(longerTarget.c_str(), created.c_str()) == -1 && Error() == 63);
+    Require(symlink_nid_postfix(longTarget.c_str(), (root / "missing" / "nonexistent").string().c_str()) == -1 && Error() == 63);
+    Require(symlink_nid_postfix(std::string(1023, 'a').c_str(), (root / "missing" / "nonexistent").string().c_str()) == -1 && Error() == 2);
+    const std::string longCreated(1024, 'c');
+    Require(symlink_nid_postfix("sub/dir", longCreated.c_str()) == -1 && Error() == 63);
+    const std::string longerCreated(1025, 'c');
+    Require(symlink_nid_postfix("sub/dir", longerCreated.c_str()) == -1 && Error() == 63);
+    const auto longComponentCreated = (root / std::string(256, 'd')).string();
+    Require(symlink_nid_postfix("sub/dir", longComponentCreated.c_str()) == -1 && Error() == 63);
+    Require(symlink_nid_postfix(longTarget.c_str(), longCreated.c_str()) == -1 && Error() == 63);
+    Require(symlink_nid_postfix(std::string(1023, 'a').c_str(), longCreated.c_str()) == -1 && Error() == 63);
+    Require(symlink_nid_postfix(std::string(1023, 'a').c_str(), longComponentCreated.c_str()) == -1 && Error() == 63);
     const auto links = [](const std::string& created, const char* target) {
         char buffer[16];
         const auto length = std::strlen(target);

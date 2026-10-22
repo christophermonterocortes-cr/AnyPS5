@@ -387,6 +387,8 @@ int APS5_VABI chroot_nid_postfix(const char* path) {
 int APS5_VABI symlink_nid_postfix(const char* target, const char* created) {
     if (target == nullptr || created == nullptr) return static_cast<int>(Fail(GuestEfault));
     if (*target == '\0' || *created == '\0') return static_cast<int>(Fail(GuestEnoent));
+    if (std::strlen(target) >= GuestPathMax) return static_cast<int>(Fail(GuestEnametoolong));
+    if (std::strlen(created) >= GuestPathMax || HasLongComponent(created)) return static_cast<int>(Fail(GuestEnametoolong));
     const std::filesystem::path contents(target);
     if (contents.has_root_name() || contents.has_root_directory()) {
         NotImplemented_nid_no_patch("symlink: absolute targets");
@@ -416,6 +418,7 @@ int APS5_VABI symlink_nid_postfix(const char* target, const char* created) {
         if (code == ERROR_PRIVILEGE_NOT_HELD) return static_cast<int>(Fail(GuestEperm));
         if (code == ERROR_ALREADY_EXISTS || code == ERROR_FILE_EXISTS) return static_cast<int>(Fail(GuestEexist));
         if (code == ERROR_PATH_NOT_FOUND) return static_cast<int>(Fail(GuestEnoent));
+        if (code == ERROR_FILENAME_EXCED_RANGE) return static_cast<int>(Fail(GuestEnametoolong));
         throw std::system_error(static_cast<int>(code), std::system_category(), "symlink");
     }
 #else
@@ -423,6 +426,7 @@ int APS5_VABI symlink_nid_postfix(const char* target, const char* created) {
         std::filesystem::create_directory_symlink(contents, native, error);
     else
         std::filesystem::create_symlink(contents, native, error);
+    if (error == std::errc::filename_too_long) return static_cast<int>(Fail(GuestEnametoolong));
     if (error) throw std::system_error(error, "symlink");
 #endif
     RecordWrittenPath_nid_no_patch(native);
