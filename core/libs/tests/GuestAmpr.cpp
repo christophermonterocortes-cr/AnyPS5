@@ -1,6 +1,7 @@
 #include "SceTypes.hpp"
 #include "prx/libc/include/general/VabiMacros.hpp"
 #include "prx/libc/include/GuestArena.hpp"
+#include "prx/libc/include/GuestLocale.hpp"
 #include "prx/libkernel/Apr/include/AprCommandBuffer.hpp"
 #include <array>
 #include <atomic>
@@ -144,6 +145,11 @@ int APS5_VABI sceKernelGetEventFilter(const KernelEvent*);
 std::uintptr_t APS5_VABI sceKernelGetEventId(const KernelEvent*);
 std::intptr_t APS5_VABI sceKernelGetEventData(const KernelEvent*);
 void* APS5_VABI sceKernelGetEventUserData(const KernelEvent*);
+extern std::uint64_t _ZNSt7num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE2idE_nid_postfix;
+extern std::uintptr_t _ZTVSt7num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE_nid_postfix[16];
+extern std::uint64_t _ZNSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE2idE_nid_postfix;
+std::size_t APS5_VABI _ZNSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE7_GetcatEPPKNSt6locale5facetEPKS5__nid_postfix(const GuestLocale::Facet** facet, const void* locale);
+int APS5_VABI _ZNKSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE3getES3_S3_RSt8ios_baseRNSt5_IosbIiE8_IostateEP2tmPKcSE__nid_postfix(void);
 }
 
 static void RequireAt(bool value, int line) {
@@ -1470,9 +1476,37 @@ void TestKernelWriteCommands() {
     Require(sceKernelWriteRemapIntoPrtCommand(nullptr, prt, source, page, cpuReadWrite, 0, nullptr) == 0);
 }
 
+void TestLocaleDescriptors() {
+    Require(_ZNSt7num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE2idE_nid_postfix == 0);
+    for (std::size_t i = 0; i < 16; ++i) {
+        Require(_ZTVSt7num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE_nid_postfix[i] == 0);
+    }
+    Require(_ZNSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE2idE_nid_postfix == 0);
+    const GuestLocale::Facet* facet = nullptr;
+    Require(_ZNSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE7_GetcatEPPKNSt6locale5facetEPKS5__nid_postfix(nullptr, nullptr) == 1);
+    Require(_ZNSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE7_GetcatEPPKNSt6locale5facetEPKS5__nid_postfix(&facet, nullptr) == 1);
+    Require(facet != nullptr);
+    Require(facet->references == 1);
+    Require(facet->vtable != nullptr);
+    Require(facet->vtable->destroy != nullptr);
+    Require(facet->vtable->deleteObject != nullptr);
+    Require(facet->vtable->retain != nullptr);
+    Require(facet->vtable->release != nullptr);
+    auto* mutableFacet = const_cast<GuestLocale::Facet*>(facet);
+    mutableFacet->vtable->retain(mutableFacet);
+    Require(mutableFacet->vtable->release(mutableFacet) == nullptr);
+    mutableFacet->vtable->destroy(mutableFacet);
+    mutableFacet->vtable->deleteObject(mutableFacet);
+    const GuestLocale::Facet* existingFacet = facet;
+    Require(_ZNSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE7_GetcatEPPKNSt6locale5facetEPKS5__nid_postfix(&facet, nullptr) == 1);
+    Require(facet == existingFacet);
+    Require(_ZNKSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE3getES3_S3_RSt8ios_baseRNSt5_IosbIiE8_IostateEP2tmPKcSE__nid_postfix() == 0);
+}
+
 }
 
 int main() {
+    TestLocaleDescriptors();
     TestRecording("frame");
     TestRecording("");
     TestRecording("1234567");

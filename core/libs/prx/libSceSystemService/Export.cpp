@@ -311,6 +311,7 @@ int APS5_VABI sceSystemServiceParamGetInt(int paramId, int* value) {
   case SYSTEM_SERVICE_PARAM_ID_SUMMERTIME: *value = HostTimeZone().summer ? 1 : 0; break;
   case SYSTEM_SERVICE_PARAM_ID_GAME_PARENTAL_LEVEL: *value = SYSTEM_SERVICE_PARAM_GAME_PARENTAL_OFF; break;
   case SYSTEM_SERVICE_PARAM_ID_ENTER_BUTTON_ASSIGN: *value = SYSTEM_SERVICE_PARAM_ENTER_BUTTON_CROSS; break;
+  case SYSTEM_SERVICE_PARAM_ID_100: *value = 0; break;
   default: *value = 0; break;
  }
  return SYSTEM_SERVICE_OK;

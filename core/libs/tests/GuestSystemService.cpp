@@ -6,6 +6,7 @@
 #include <stdexcept>
 
 extern "C" int APS5_VABI sceSystemServiceGetHdrToneMapLuminance(SystemServiceHdrToneMapLuminance* luminance);
+extern "C" int APS5_VABI sceSystemServiceParamGetInt(int paramId, int* value);
 extern "C" int APS5_VABI sceSystemServiceParamGetString(int paramId, char* buf, std::size_t bufSize);
 extern "C" int APS5_VABI sceSystemServiceLaunchApp(const char* titleId, const char* const* arguments, const void* param);
 extern "C" int APS5_VABI sceSystemServiceAddLocalProcessForPsmKit(const char* path, const char* const* arguments, const void* param);
@@ -143,4 +144,9 @@ int main() {
     SystemServiceEvent event;
     event.event_type = 7;
     Require(sceSystemServiceReceiveEvent(&event) == SYSTEM_SERVICE_ERROR_NO_EVENT);
+    Require(sceSystemServiceParamGetInt(SYSTEM_SERVICE_PARAM_ID_100, nullptr) == SYSTEM_SERVICE_ERROR_PARAMETER);
+    int param100 = -1;
+    Require(sceSystemServiceParamGetInt(SYSTEM_SERVICE_PARAM_ID_100, &param100) == SYSTEM_SERVICE_OK && param100 == 0);
+    int paramUnknown = -1;
+    Require(sceSystemServiceParamGetInt(9999, &paramUnknown) == SYSTEM_SERVICE_OK && paramUnknown == 0);
 }

@@ -4,6 +4,7 @@
 #include "SceTypes.hpp"
 #include "prx/libc/include/General.hpp"
 #include "prx/libc/include/SonyCrt.hpp"
+#include "prx/libc/include/GuestLocale.hpp"
 #include "prx/libkernel/Apr/include/AprCommandBuffer.hpp"
 #include "prx/libkernel/Time/include/Time.hpp"
 #include <algorithm>
@@ -226,6 +227,13 @@ static int RecordWriteAddressFromCounterPair(Apr::CommandBufferObject* buffer, v
 }
 
 static std::atomic_flag sharedPtrSpinLock;
+static void APS5_VABI DestroyTimeGet(GuestLocale::Facet*) {}
+static void APS5_VABI RetainTimeGet(GuestLocale::Facet*) {}
+static GuestLocale::Facet* APS5_VABI ReleaseTimeGet(GuestLocale::Facet*) {
+    return nullptr;
+}
+static const GuestLocale::FacetVtable g_timeGetFacetVtable{DestroyTimeGet, DestroyTimeGet, RetainTimeGet, ReleaseTimeGet};
+static const GuestLocale::Facet g_timeGetFacet{&g_timeGetFacetVtable, 1, 0};
 
 struct AmmUsageStatsData {
     std::uint64_t sizeInBytes;
@@ -847,10 +855,7 @@ int APS5_VABI sceAmprAmmWaitCommandBufferCompletion(std::uint32_t id) {
     return AmmSubmitted_nid_no_patch(id) ? 0 : SCE_KERNEL_ERROR_ESRCH;
 }
 
-int APS5_VABI _ZNSt7num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE2idE_nid_postfix(void) {
-    NotImplemented_nid_no_patch(__func__);
-    return 0;
-}
+std::uint64_t _ZNSt7num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE2idE_nid_postfix = 0;
 
 void APS5_VABI _Unlock_shared_ptr_spin_lock_nid_postfix(void) {
     sharedPtrSpinLock.clear(std::memory_order_release);
@@ -860,24 +865,19 @@ int APS5_VABI _Cnd_init_with_name_nid_postfix(void** handle, const char*) {
     return _Cnd_init_nid_postfix(handle);
 }
 
-int APS5_VABI _ZTVSt7num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE_nid_postfix(void) {
-    NotImplemented_nid_no_patch(__func__);
-    return 0;
-}
+std::uintptr_t _ZTVSt7num_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE_nid_postfix[16] {};
 
 int APS5_VABI _ZNKSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE3getES3_S3_RSt8ios_baseRNSt5_IosbIiE8_IostateEP2tmPKcSE__nid_postfix(void) {
-    NotImplemented_nid_no_patch(__func__);
     return 0;
 }
 
-int APS5_VABI _ZNSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE2idE_nid_postfix(void) {
-    NotImplemented_nid_no_patch(__func__);
-    return 0;
-}
+std::uint64_t _ZNSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE2idE_nid_postfix = 0;
 
-int APS5_VABI _ZNSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE7_GetcatEPPKNSt6locale5facetEPKS5__nid_postfix(void) {
-    NotImplemented_nid_no_patch(__func__);
-    return 0;
+std::size_t APS5_VABI _ZNSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE7_GetcatEPPKNSt6locale5facetEPKS5__nid_postfix(const GuestLocale::Facet** facet, const void*) {
+    if (facet != nullptr && *facet == nullptr) {
+        *facet = &g_timeGetFacet;
+    }
+    return 1;
 }
 
 void APS5_VABI _Lock_shared_ptr_spin_lock_nid_postfix(void) {

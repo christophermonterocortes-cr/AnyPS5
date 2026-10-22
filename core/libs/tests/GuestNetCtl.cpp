@@ -44,7 +44,9 @@ std::size_t NetCtlDefaultRoutes_nid_no_patch(const char*, std::size_t, NetCtlDef
 #endif
 int APS5_VABI sceNetCtlRegisterCallback(NetCtlCallback, void*, int*);
 int APS5_VABI sceNetCtlRegisterCallbackV6(NetCtlCallback, void*, int*);
+int APS5_VABI sceNetCtlInit(void);
 void APS5_VABI sceNetCtlTerm(void);
+bool NetCtlIsInitialized_nid_no_patch(void);
 int APS5_VABI sceNetCtlUnregisterCallback(int);
 int APS5_VABI sceNetCtlUnregisterCallbackV6(int);
 }
@@ -149,6 +151,30 @@ void CheckCallbacks() {
     Require(g_second.calls == 1 && g_self.calls == 1 && g_v6.calls == 0);
     Require(sceNetCtlUnregisterCallback(first) == 0);
     Require(sceNetCtlUnregisterCallbackV6(v6) == 0);
+    sceNetCtlTerm();
+    Require(!NetCtlIsInitialized_nid_no_patch());
+    int rejectedCid = -1;
+    Require(sceNetCtlRegisterCallback(nullptr, nullptr, &rejectedCid) == kErrInvalidAddr);
+    Require(!NetCtlIsInitialized_nid_no_patch());
+    Require(sceNetCtlRegisterCallbackV6(nullptr, nullptr, &rejectedCid) == kErrInvalidAddr);
+    Require(!NetCtlIsInitialized_nid_no_patch());
+    Require(sceNetCtlInit() == 0);
+    Require(NetCtlIsInitialized_nid_no_patch());
+    Require(sceNetCtlInit() == 0);
+    Require(NetCtlIsInitialized_nid_no_patch());
+    sceNetCtlTerm();
+    Require(!NetCtlIsInitialized_nid_no_patch());
+    int autoInit = -1;
+    Require(sceNetCtlRegisterCallback(RecordFirst, &firstProbe, &autoInit) == 0 && autoInit == 0);
+    Require(NetCtlIsInitialized_nid_no_patch());
+    Require(sceNetCtlUnregisterCallback(autoInit) == 0);
+    sceNetCtlTerm();
+    Require(!NetCtlIsInitialized_nid_no_patch());
+    int autoInitV6 = -1;
+    Require(sceNetCtlRegisterCallbackV6(RecordV6, &v6Probe, &autoInitV6) == 0 && autoInitV6 == 0);
+    Require(NetCtlIsInitialized_nid_no_patch());
+    Require(sceNetCtlUnregisterCallbackV6(autoInitV6) == 0);
+    sceNetCtlTerm();
 }
 
 NetCtlInfo Query(int code) {

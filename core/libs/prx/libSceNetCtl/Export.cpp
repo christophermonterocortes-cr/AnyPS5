@@ -81,12 +81,16 @@ struct CallbackSlot {
 };
 
 static std::mutex g_callbackLock;
+static bool g_netCtlInitialized = false;
 static CallbackSlot g_callbacks[MAX_CALLBACKS] = {};
 static CallbackSlot g_callbacksV6[MAX_CALLBACKS] = {};
 
 static int RegisterCallback(CallbackSlot (&callbacks)[MAX_CALLBACKS], NetCtlCallback func, void* arg, int* cid) {
     if (!func || !cid) return SCE_NET_CTL_ERROR_INVALID_ADDR;
     std::lock_guard lock(g_callbackLock);
+    if (!g_netCtlInitialized) {
+        g_netCtlInitialized = true;
+    }
     for (int index = 0; index < MAX_CALLBACKS; ++index) {
         if (!callbacks[index].func) {
             callbacks[index] = {func, arg, 0};
@@ -490,6 +494,8 @@ int APS5_VABI sceNetCtlGetStateV6(int* state) {
 }
 
 int APS5_VABI sceNetCtlInit(void) {
+    std::lock_guard lock(g_callbackLock);
+    g_netCtlInitialized = true;
     return 0;
 }
 
@@ -510,8 +516,14 @@ int APS5_VABI sceNetCtlGetInfoV6(int code, void* info) {
 
 void APS5_VABI sceNetCtlTerm(void) {
     std::lock_guard lock(g_callbackLock);
+    g_netCtlInitialized = false;
     for (auto& slot : g_callbacks) slot = {};
     for (auto& slot : g_callbacksV6) slot = {};
+}
+
+bool NetCtlIsInitialized_nid_no_patch(void) {
+    std::lock_guard lock(g_callbackLock);
+    return g_netCtlInitialized;
 }
 
 int APS5_VABI sceNetCtlUnregisterCallback(int cid) {

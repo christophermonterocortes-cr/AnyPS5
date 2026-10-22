@@ -1,5 +1,9 @@
 # libSceAmpr technical debt
 
+### Silent stubs
+
+- [_ZNKSt8time_getIcSt19istreambuf_iteratorIcSt11char_traitsIcEEE3getES3_S3_RSt8ios_baseRNSt5_IosbIiE8_IostateEP2tmPKcSE_](../../../core/libs/prx/libSceAmpr/Export.cpp) (libSceAmpr) - returns 0 without parsing time fields: AnyPS5 provides a stub implementation that satisfies game engine linkage without evaluating time formatting.
+
 ### Unknown function info
 
 - [AMPR command buffer null arguments](../../../core/libs/prx/libSceAmpr/Export.cpp) (libSceAmpr) - the result for a null command buffer is unknown for `sceAmprCommandBufferConstructor`, `sceAmprAprCommandBufferConstructor`, `sceAmprCommandBufferReset` and `sceAmprCommandBufferSetBuffer`; these return `SCE_KERNEL_ERROR_EINVAL` here, but the behavior has not been confirmed on a PS5.
@@ -12,6 +16,7 @@
 
 ### Functional
 
+- [time_get and num_get locale descriptors](../../../core/libs/prx/libSceAmpr/Export.cpp) (libSceAmpr) - static descriptors `_ZNSt7num_get...2idE`, `_ZTVSt7num_get...`, `_ZNSt8time_get...2idE`, and `_ZNSt8time_get..._Getcat` provide static facet records and vtables expected by game engines. `_Getcat` populates the facet pointer with a static facet descriptor initialized with reference count 1 and safe no-op vtable callbacks (`destroy`, `deleteObject`, `retain`, `release`), returning 1.
 - [sceAmprAmmGetUsageStatsData](../../../core/libs/prx/libSceAmpr/Export.cpp) (libSceAmpr) fills the caller-sized 24-byte statistics structure with 512 page-table pool entries, no allocated entries, a zero high watermark and ring idle flags 0x7, the constants of [KytyPS5](https://github.com/KytyPS5/KytyPS5/blob/main/src/libs/libAmpr.cpp); they are not measured on a console, and the real call is a pass-through to `sceKernelMapperGetUsageStatsData` per [drakmor/ampr_emu](https://github.com/drakmor/ampr_emu/blob/main/src/ampr_emu_amm.cpp), which this port has no kernel-side counterpart for.
 - [Dinkumware thread exports](../../../core/libs/prx/libSceAmpr/Export.cpp) (libSceAmpr) follow the Dinkumware threads library shipped with [Visual C++ 2013](https://github.com/adityaramesh/concurrency_runtime/tree/master/VS2013_SP2/crt/src/thr) (`cthread.c`) and its `atomic.c`, [microsoft/STL `cthread.cpp`](https://github.com/microsoft/STL/blob/main/stl/src/cthread.cpp) and C11 Annex K, without console verification. The spin lock (byte exchange loop, no yield) matches that disassembly. The shared_ptr spin lock is one process-wide flag that yields while it spins. `wcstombs_s` is `wcsrtombs_s` with a fresh conversion state, so `*retval` excludes the terminating null as in Annex K, not as in the Microsoft CRT, and `_TRUNCATE` has no meaning.
 - [_Cnd_init_with_name](../../../core/libs/prx/libSceAmpr/Export.cpp) (libSceAmpr) - takes a pointer to the handle slot like the libc `_Cnd_*` exports from [#3079](https://github.com/boykopovar/AnyPS5/pull/3079) and acts on the same conditions. The signature `_Cnd_init_with_name(_Cnd_t*, const char* name)` is inferred from [fpPS4 `ps4_mtx_internal.pas`](https://github.com/red-prig/fpPS4/blob/trunk/src/libcinternal/ps4_mtx_internal.pas), where the PS4 `_Mtx_init` is `_Mtx_init_with_name` with the name `SceLibcI_Mtx` and the name only reaches the pthread object; here it is `_Cnd_init` and the name, which may be null, is ignored. This is not confirmed on a PS5 `libc.prx`.
