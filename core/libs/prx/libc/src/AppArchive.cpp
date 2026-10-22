@@ -4,6 +4,7 @@
 #include <zarchive/zarchivereader.h>
 
 #include <algorithm>
+#include <cerrno>
 #include <limits>
 #include <map>
 #include <memory>
@@ -227,7 +228,11 @@ bool AppArchiveDescriptorSeek_nid_no_patch(int descriptor, std::int64_t offset, 
     if (whence == 1) base = static_cast<std::int64_t>(file->position);
     else if (whence == 2) base = static_cast<std::int64_t>(file->node.Size);
     else if (whence != 0) throw std::invalid_argument("AppArchiveDescriptorSeek: invalid whence " + std::to_string(whence));
-    if ((offset > 0 && base > limit - offset) || base + offset < 0) {
+    if (offset > 0 && base > limit - offset) {
+        *position = -EOVERFLOW;
+        return true;
+    }
+    if (base + offset < 0) {
         *position = -1;
         return true;
     }

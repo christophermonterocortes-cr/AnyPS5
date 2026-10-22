@@ -85,7 +85,7 @@ std::optional<std::int64_t> ReadArchivedIovecs(int fd, const void* iov, int iovc
 std::optional<std::int64_t> SeekArchivedFile(int fd, std::int64_t offset, int whence) {
     std::int64_t position = 0;
     if (!AppArchiveDescriptorSeek_nid_no_patch(fd, offset, whence, &position)) return std::nullopt;
-    return position < 0 ? -EINVAL : position;
+    return position < 0 ? (position == -EOVERFLOW ? -EOVERFLOW : -EINVAL) : position;
 }
 
 std::optional<std::int64_t> ArchivedFileRemaining(int fd) {

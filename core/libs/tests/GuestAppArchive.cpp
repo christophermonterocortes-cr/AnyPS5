@@ -3,6 +3,7 @@
 #include "prx/libc/include/General.hpp"
 
 #include <algorithm>
+#include <cerrno>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -106,6 +107,7 @@ void Present(const std::filesystem::path& root) {
     Require(AppArchiveDescriptorRead_nid_no_patch(Descriptor, single, 1, nullptr, &done) && done == 0, "a read past the end returned bytes");
     Require(AppArchiveDescriptorSeek_nid_no_patch(Descriptor, -1, 0, &sought) && sought == -1, "a negative seek was accepted");
     Require(AppArchiveDescriptorSeek_nid_no_patch(Descriptor, 10, 1, &sought) && sought == static_cast<std::int64_t>(BigSize + 10), "seeking past the end failed");
+    Require(AppArchiveDescriptorSeek_nid_no_patch(Descriptor, std::numeric_limits<std::int64_t>::max(), 1, &sought) && sought == -EOVERFLOW, "an overflowing seek was accepted");
     AppArchiveDetach_nid_no_patch(Descriptor);
     Require(!AppArchiveDescriptor_nid_no_patch(Descriptor, nullptr, nullptr) && AppArchiveDescriptor_nid_no_patch(Shared, nullptr, nullptr), "detaching one descriptor detached its duplicate");
     AppArchiveShare_nid_no_patch(Descriptor, Shared);

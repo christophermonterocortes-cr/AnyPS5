@@ -50,6 +50,22 @@ static std::int64_t NativeLseek(int fd, std::int64_t offset, int whence) {
     const auto positioned = File::LockPositionedTransfer(fd);
     const auto result = File::SeekSharedMemory_nid_no_patch(fd, offset, whence);
     if (result != -2) return result;
+    if (whence == 1) {
+        const auto base = ::_lseeki64(fd, 0, SEEK_CUR);
+        if (base >= 0 && offset > 0 && base > std::numeric_limits<std::int64_t>::max() - offset) {
+            errno = EOVERFLOW;
+            return -1;
+        }
+    } else if (whence == 2) {
+        LARGE_INTEGER size{};
+        const auto handle = reinterpret_cast<HANDLE>(::_get_osfhandle(fd));
+        if (handle != INVALID_HANDLE_VALUE && GetFileSizeEx(handle, &size)) {
+            if (offset > 0 && size.QuadPart > std::numeric_limits<std::int64_t>::max() - offset) {
+                errno = EOVERFLOW;
+                return -1;
+            }
+        }
+    }
     const auto position = ::_lseeki64(fd, offset, whence);
     if (position < 0 || GetFileType(reinterpret_cast<HANDLE>(::_get_osfhandle(fd))) != FILE_TYPE_PIPE) return position;
     errno = ESPIPE;
@@ -136,13 +152,28 @@ static int MapFlags(int sceFlags) {
 }
 #else
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 static int NativeOpen(const std::filesystem::path& p, int nativeFlags, std::uint16_t mode) {
     return ::open(p.c_str(), nativeFlags, static_cast<mode_t>(mode));
 }
 static std::int64_t NativeLseek(int fd, std::int64_t offset, int whence) {
     const auto result = File::SeekSharedMemory_nid_no_patch(fd, offset, whence);
-    return result == -2 ? ::lseek(fd, static_cast<off_t>(offset), whence) : result;
+    if (result != -2) return result;
+    if (whence == 1) {
+        const auto base = ::lseek(fd, 0, SEEK_CUR);
+        if (base >= 0 && offset > 0 && base > std::numeric_limits<std::int64_t>::max() - offset) {
+            errno = EOVERFLOW;
+            return -1;
+        }
+    } else if (whence == 2) {
+        struct stat st{};
+        if (::fstat(fd, &st) == 0 && offset > 0 && static_cast<std::int64_t>(st.st_size) > std::numeric_limits<std::int64_t>::max() - offset) {
+            errno = EOVERFLOW;
+            return -1;
+        }
+    }
+    return ::lseek(fd, static_cast<off_t>(offset), whence);
 }
 static std::int64_t NativeRead(int fd, void* buf, std::size_t n) {
     return ::read(fd, buf, n);

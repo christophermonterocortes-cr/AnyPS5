@@ -750,6 +750,10 @@ double APS5_VABI _Sinh_nid_postfix(double x, double y) {
     return SonySinh(x, y);
 }
 
+double APS5_VABI _Cosh_nid_postfix(double x, double y) {
+    return SonyCosh(x, y);
+}
+
 int APS5_VABI _Fltrounds_nid_postfix(void) {
     return SonyFltrounds();
 }

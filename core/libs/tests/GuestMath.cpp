@@ -132,6 +132,8 @@ float APS5_VABI coshf_nid_postfix(float);
 float APS5_VABI sinhf_nid_postfix(float);
 float APS5_VABI _FSinh_nid_postfix(float, float);
 float APS5_VABI _FCosh_nid_postfix(float, float);
+double APS5_VABI _Sinh_nid_postfix(double, double);
+double APS5_VABI _Cosh_nid_postfix(double, double);
 double APS5_VABI asinh_nid_postfix(double);
 float APS5_VABI asinhf_nid_postfix(float);
 double APS5_VABI acosh_nid_postfix(double);
@@ -836,6 +838,16 @@ static void CheckHyperbolic() {
     Require(std::isfinite(cosh_nid_postfix(710.4)) && std::isfinite(sinh_nid_postfix(-710.4)) && sinh_nid_postfix(-710.4) < 0.);
     Require(Near(asinh_nid_postfix(-1e300), -691.4686750787736, 1e-15));
     Require(Near(acosh_nid_postfix(1e300), 691.4686750787736, 1e-15));
+    Require(_Cosh_nid_postfix(0., 1.) == 1. && _Cosh_nid_postfix(0., 2.5) == 2.5);
+    Require(Near(_Cosh_nid_postfix(1., 1.), 1.5430806348152437, 1e-15));
+    Require(Near(_Cosh_nid_postfix(1., -2.), -3.0861612696304874, 1e-14));
+    Require(Near(_Cosh_nid_postfix(-1.0, -2.0), -3.0861612696304874, 1e-15));
+    Require(std::isinf(_Cosh_nid_postfix(std::numeric_limits<double>::infinity(), -1.0)) && std::signbit(_Cosh_nid_postfix(std::numeric_limits<double>::infinity(), -1.0)));
+    Require(std::isnan(_Cosh_nid_postfix(std::numeric_limits<double>::infinity(), 0.0)));
+    Require(Near(_Cosh_nid_postfix(711.0, 1e-300), 0x1.2190c08e2f1a4p+28, 1e-15));
+    Require(_Cosh_nid_postfix(720.0, 0.0) == 0.0 && !std::signbit(_Cosh_nid_postfix(720.0, 0.0)));
+    Require(_Cosh_nid_postfix(720.0, -0.0) == 0.0 && std::signbit(_Cosh_nid_postfix(720.0, -0.0)));
+    Require(_Sinh_nid_postfix(0., 1.) == 0. && Near(_Sinh_nid_postfix(1., 2.), 2. * 1.1752011936438014, 1e-14));
 }
 
 static void CheckScaledHyperbolic() {

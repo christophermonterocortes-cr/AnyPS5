@@ -118,6 +118,18 @@ int main() {
     RequirePosixFailure([&] { return lseek_nid_postfix(-1, 0, SEEK_SET); }, EBADF);
     RequirePosixFailure([&] { return lseek_nid_postfix(descriptor, 0, -1); }, EINVAL);
     RequirePosixFailure([&] { return lseek_nid_postfix(descriptor, 0, 3); }, EINVAL);
+    constexpr int GuestEoverflow = 84;
+    RequirePosixFailure([&] { return lseek_nid_postfix(descriptor, -1, SEEK_SET); }, EINVAL);
+    RequirePosixFailure([&] { return lseek_nid_postfix(descriptor, -10, SEEK_CUR); }, EINVAL);
+    RequirePosixFailure([&] { return lseek_nid_postfix(descriptor, -100, SEEK_END); }, EINVAL);
+    RequirePosixFailure([&] { return lseek_nid_postfix(descriptor, std::numeric_limits<std::int64_t>::max(), SEEK_CUR); }, GuestEoverflow);
+    RequirePosixFailure([&] { return lseek_nid_postfix(descriptor, std::numeric_limits<std::int64_t>::max(), SEEK_END); }, GuestEoverflow);
+    Require(sceKernelLseek(descriptor, -1, SEEK_SET) == static_cast<int>(0x80020016u));
+    Require(sceKernelLseek(descriptor, -10, SEEK_CUR) == static_cast<int>(0x80020016u));
+    Require(sceKernelLseek(descriptor, -100, SEEK_END) == static_cast<int>(0x80020016u));
+    Require(sceKernelLseek(descriptor, std::numeric_limits<std::int64_t>::max(), SEEK_CUR) == static_cast<int>(0x80020054u));
+    Require(sceKernelLseek(descriptor, std::numeric_limits<std::int64_t>::max(), SEEK_END) == static_cast<int>(0x80020054u));
+    Require(lseek_nid_postfix(descriptor, 0, SEEK_CUR) == 2);
     RequirePosixFailure([&] { return read_nid_postfix(descriptor, nullptr, 1); }, EFAULT);
     RequirePosixFailure([&] { return _read_nid_postfix(descriptor, nullptr, 1); }, EFAULT);
     RequirePosixFailure([&] { return write_nid_postfix(descriptor, nullptr, 1); }, EFAULT);
